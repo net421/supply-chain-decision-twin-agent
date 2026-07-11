@@ -1,8 +1,9 @@
 from typing import Any
 
 from fastapi import FastAPI, HTTPException, Query
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
+from src.decision_twin import get_persisted_run, list_scenarios, run_decision_twin
 from src.utils import get_connection
 from src.write_memory import write_decision_memory
 
@@ -11,10 +12,11 @@ DEFAULT_HIGH_RISK_THRESHOLD = 0.70
 app = FastAPI(
     title="Supply Chain Decision Twin API",
     description=(
-        "Local synthetic decision-support API for deterministic SQL stockout "
-        "risk and decision memory. It does not execute purchase orders."
+        "Synthetic/local decision-support API combining the preserved Dify SQL demo "
+        "with deterministic forecasting, scenario simulation, action ranking, and "
+        "human approval boundaries. It does not execute purchase orders."
     ),
-    version="0.1.0",
+    version="0.2.0",
 )
 
 
@@ -31,7 +33,14 @@ class DecisionMemoryCreate(BaseModel):
     claim_boundary: str = "Synthetic/local decision-support lab only"
 
 
-def _row_to_stockout_risk(row: tuple[Any, ...]) -> dict[str, Any]:
+class DecisionTwinRunCreate(BaseModel):
+    scenario_id: str = Field(default="demand_spike_supplier_delay")
+    product_id: str | None = None
+    location_id: str | None = None
+    persist: bool = True
+
+
+def _row_to_stockout_risk(row: Any) -> dict[str, Any]:
     return {
         "product_id": row[0],
         "location_id": row[1],
@@ -49,11 +58,21 @@ def health() -> dict[str, Any]:
         "status": "ok",
         "project": "supply-chain-decision-twin-agent",
         "mode": "synthetic/local decision-support lab",
+        "version": app.version,
         "executes_purchase_orders": False,
         "human_approval_required": True,
+        "capabilities": [
+            "dify_rag_api_orchestration",
+            "deterministic_sql_evidence",
+            "demand_forecast",
+            "scenario_simulation",
+            "action_ranking",
+            "decision_memory",
+        ],
     }
 
 
+# Preserved compatibility endpoint used by the existing Dify chatflow.
 @app.get("/stockout-risks")
 def stockout_risks(
     threshold: float = Query(
@@ -94,10 +113,52 @@ def high_stockout_risks() -> list[dict[str, Any]]:
     return stockout_risks(DEFAULT_HIGH_RISK_THRESHOLD)
 
 
+@app.get("/decision-twin/scenarios")
+def decision_twin_scenarios() -> list[dict[str, Any]]:
+    return list_scenarios()
+
+
+@app.get("/decision-twin/recommendations")
+def decision_twin_recommendations(
+    scenario_id: str = "demand_spike_supplier_delay",
+    product_id: str | None = None,
+    location_id: str | None = None,
+) -> dict[str, Any]:
+    try:
+        return run_decision_twin(
+            scenario_id,
+            product_id=product_id,
+            location_id=location_id,
+            persist=False,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@app.post("/decision-twin/run", status_code=201)
+def create_decision_twin_run(payload: DecisionTwinRunCreate) -> dict[str, Any]:
+    try:
+        return run_decision_twin(
+            payload.scenario_id,
+            product_id=payload.product_id,
+            location_id=payload.location_id,
+            persist=payload.persist,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@app.get("/decision-twin/runs/{run_id}")
+def read_decision_twin_run(run_id: str) -> dict[str, Any]:
+    result = get_persisted_run(run_id)
+    if result is None:
+        raise HTTPException(status_code=404, detail="Decision twin run not found")
+    return result
+
+
 @app.get("/decision-memory")
 def decision_memory() -> list[dict[str, Any]]:
     conn = get_connection()
-    conn.row_factory = None
     try:
         rows = conn.execute(
             """

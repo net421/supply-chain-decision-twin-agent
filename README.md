@@ -1,127 +1,61 @@
-# Supply Chain Decision Twin: Dify + API + RAG + SQL Demo
+# Supply Chain Decision Twin: Dify + Quantitative Scenario Engine
 
-This repository is a portfolio demo showing how a Dify chatflow can orchestrate
-RAG, a deterministic backend API, SQL analytics, decision memory, and an LLM
-response for a supply-chain decision-support use case.
+This repository preserves the original **Dify + RAG + FastAPI + SQLite** portfolio demo and extends it with a deterministic quantitative decision twin for demand forecasting, scenario simulation, action ranking, decision memory and human approval.
 
-The main focus is the integration pattern:
+It is a synthetic/local decision-support lab. It does not execute purchase orders, inventory transfers or supplier commitments.
+
+## Preserved Dify evidence
+
+The existing local Dify implementation remains the integration core:
 
 ```text
 Dify Chatflow
   -> Knowledge Retrieval for governance and semantic context
-  -> HTTP/API call to a local FastAPI backend
-  -> SQLite SQL query for exact stockout-risk values
-  -> LLM response grounded in API output
-  -> Human approval boundary
+  -> HTTP request to FastAPI
+  -> deterministic SQLite evidence
+  -> LLM explanation
+  -> human approval boundary
 ```
-
-This is a synthetic/local decision-support lab. It is not a production
-autonomous AI system, and it does not execute purchase orders.
-
-## Demo Evidence
-
-### Dify Studio Apps
 
 ![Dify Studio apps overview](docs/screenshots/dify-studio-apps-overview.png)
 
-The local Dify workspace includes the main chatflow app:
-`Supply Chain Decision Twin Assistant`.
-
-### Dify Chatflow Orchestration
-
 ![Dify chatflow with RAG, HTTP request, LLM, and answer](docs/screenshots/dify-chatflow-http-rag-llm-answer.png)
 
-The configured chatflow demonstrates:
+The Dify fork reference used for the local setup is `net421/dify`. See `docs/PORTFOLIO_DEMO.md` for the original screenshot-based walkthrough.
 
-- `User Input`
-- `Knowledge Retrieval`
-- `HTTP Request` to the deterministic SQL backend
-- `LLM`
-- `Answer`
+## What was added
 
-The important design choice is that RAG does not calculate numeric KPI values.
-RAG supplies context and governance. The backend API supplies exact SQL-backed
-values.
+The quantitative engine now:
 
-See the full walkthrough in
-[docs/PORTFOLIO_DEMO.md](docs/PORTFOLIO_DEMO.md).
+1. forecasts weekly demand with a transparent weighted moving average;
+2. evaluates baseline, demand-spike, supplier-delay and combined scenarios;
+3. simulates inventory availability across the adjusted lead-time horizon;
+4. evaluates no action, expedite, transfer and planned-replenishment review options;
+5. ranks alternatives using cost, shortage, service and stockout-risk penalties;
+6. persists every candidate evaluation and selected recommendation;
+7. preserves a mandatory human-approval and non-execution boundary.
 
-## What This Repo Demonstrates
-
-- Dify chatflow orchestration for a realistic AI workflow.
-- RAG used for documentation, glossary, semantic contract, limitations, and
-  human approval rules.
-- A FastAPI backend that exposes deterministic SQL results to Dify.
-- SQLite-backed stockout-risk data and decision-memory records.
-- Clear separation between LLM wording and backend-calculated facts.
-- Tests that validate the API and existing decision-support logic.
-- Screenshots and setup notes that prove how the local Dify workflow was
-  configured.
+See `docs/DECISION_TWIN_MODEL.md` for formulas, assumptions and governance.
 
 ## Architecture
 
 ```text
 User question
-  |
-  v
-Dify Chatflow
-  |
-  +--> Knowledge Retrieval
-  |      - semantic contract
-  |      - KPI dictionary
-  |      - limitations
-  |      - claim boundaries
-  |      - human approval rules
-  |
-  +--> HTTP Request / API Tool
-         |
-         v
-      FastAPI backend
-         |
-         v
-      SQLite: data/supply_chain.db
-         |
-         v
-      Deterministic JSON result
-         |
-         v
-LLM final answer
-  |
-  v
-Human-reviewed decision-support recommendation
+  -> Dify RAG governance context
+  -> FastAPI
+       -> preserved SQL risk endpoint
+       -> demand forecast
+       -> scenario simulation
+       -> candidate-action evaluation
+       -> governed ranking
+       -> run and action evidence in SQLite
+  -> LLM summary grounded in backend JSON
+  -> human-reviewed decision support
 ```
 
-## Responsibility Split
+## API contracts
 
-RAG is used for:
-
-- project documentation,
-- semantic contract,
-- glossary,
-- limitations,
-- claim boundaries,
-- human approval rules.
-
-SQL/API is used for:
-
-- exact KPI values,
-- deterministic thresholds,
-- stockout risk rows,
-- inventory gap,
-- supplier risk,
-- recommended action,
-- decision memory.
-
-The LLM is used for:
-
-- final explanation,
-- summarization,
-- decision-support wording,
-- human approval framing.
-
-## Key API Endpoints
-
-The local backend lives in `src/api.py`.
+### Preserved Dify endpoints
 
 ```text
 GET  /health
@@ -129,35 +63,42 @@ GET  /stockout-risks/high
 GET  /stockout-risks?threshold=0.70
 GET  /decision-memory
 POST /decision-memory
+```
+
+`GET /stockout-risks/high` retains the exact response used by the original chatflow and screenshots.
+
+### Quantitative decision twin endpoints
+
+```text
+GET  /decision-twin/scenarios
+GET  /decision-twin/recommendations?scenario_id=baseline
+POST /decision-twin/run
+GET  /decision-twin/runs/{run_id}
 GET  /openapi.json
 ```
 
-Example deterministic response from `GET /stockout-risks/high`:
+Example run request:
 
 ```json
-[
-  {
-    "product_id": "P001",
-    "location_id": "L002",
-    "stockout_risk": 0.92,
-    "inventory_gap": -30,
-    "supplier_risk": 0.72,
-    "recommended_action": "Expedite replenishment",
-    "requires_human_approval": true
-  },
-  {
-    "product_id": "P002",
-    "location_id": "L002",
-    "stockout_risk": 0.81,
-    "inventory_gap": -10,
-    "supplier_risk": 0.76,
-    "recommended_action": "Review supplier capacity",
-    "requires_human_approval": true
-  }
-]
+{
+  "scenario_id": "demand_spike_supplier_delay",
+  "product_id": null,
+  "location_id": null,
+  "persist": true
+}
 ```
 
-## Run the Backend API
+Every response states `executes_operational_actions: false` and includes the claim boundary.
+
+## Run locally
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
+python -m pip install -r requirements.txt
+make verify
+python -m uvicorn src.api:app --reload --host 0.0.0.0 --port 8000
+```
 
 Windows PowerShell:
 
@@ -166,121 +107,67 @@ python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install -r requirements.txt
 python src/create_database.py
+python -m validation.validate_decision_twin
+python -m pytest -q
 python -m uvicorn src.api:app --reload --host 0.0.0.0 --port 8000
 ```
 
-Useful URLs:
+Run the original Dify-compatible demo:
 
-```text
-http://localhost:8000/health
-http://localhost:8000/stockout-risks/high
-http://localhost:8000/openapi.json
+```bash
+make demo
 ```
 
-## Connect Dify to the API
+Run the combined quantitative scenario:
 
-Dify was run locally with Docker from the official open-source project. The
-related fork used for reference is:
-
-```text
-https://github.com/net421/dify
+```bash
+make twin
 ```
 
-When Dify runs in Docker, use the host address:
+## Dify integration
 
-```text
-http://host.docker.internal:8000/openapi.json
-```
-
-For a direct HTTP Request node, call:
+The current chatflow can continue using:
 
 ```text
 http://host.docker.internal:8000/stockout-risks/high
 ```
 
-Recommended Dify flow:
+A new HTTP node may call `POST /decision-twin/run`. See `dify/decision_twin_api_contract.md` for the payload, responsibility split and required answer fields.
+
+## Validation evidence
+
+`make verify` performs a clean rebuild and validates:
+
+- preserved legacy Dify API contract;
+- source-table counts and constraints;
+- four scenario runs across six product-location pairs;
+- bounded service and risk metrics;
+- scenario monotonicity;
+- action-ranking evidence;
+- persisted run reconciliation;
+- API behavior and refusal boundaries;
+- full pytest suite.
+
+Generated evidence is written to `artifacts/` and uploaded by GitHub Actions rather than committed.
+
+## Repository map
 
 ```text
-User Input
-  -> Knowledge Retrieval
-  -> HTTP Request: GET /stockout-risks/high
-  -> LLM
-  -> Answer
+src/api.py                         FastAPI contracts for Dify and the twin
+src/decision_twin.py               Forecast, simulation and ranking engine
+src/run_decision_twin.py           CLI scenario runner
+src/create_database.py             Deterministic SQLite rebuild
+src/query_stockout_risk.py         Original Dify-compatible SQL demo
+src/write_memory.py                Decision-memory writer
+sql/                               Operational schema, scenarios and seed data
+memory/                            Decision, trace and approval memory
+validation/validate_decision_twin.py End-to-end evidence checks
+tests/                             Legacy compatibility and twin tests
+docs/PORTFOLIO_DEMO.md             Original Dify screenshots and walkthrough
+docs/DECISION_TWIN_MODEL.md        Quantitative model and governance
+dify/decision_twin_api_contract.md Optional upgraded Dify HTTP node
 ```
 
-## Demo Question
+## Claim boundary
 
-```text
-Which product-location pairs have high stockout risk, and what actions are recommended?
-```
-
-The final answer should include:
-
-- `P001-L002`
-  - `stockout_risk`: `0.92`
-  - `inventory_gap`: `-30`
-  - `supplier_risk`: `0.72`
-  - `recommended_action`: `Expedite replenishment`
-  - `requires_human_approval`: `true`
-
-- `P002-L002`
-  - `stockout_risk`: `0.81`
-  - `inventory_gap`: `-10`
-  - `supplier_risk`: `0.76`
-  - `recommended_action`: `Review supplier capacity`
-  - `requires_human_approval`: `true`
-
-The final answer should also state that this is a synthetic/local
-decision-support lab, the system does not execute purchase orders, and human
-approval is required before operational action.
-
-## Run Tests
-
-```powershell
-.\.venv\Scripts\Activate.ps1
-python -m pytest
-```
-
-Current verification:
-
-```text
-11 passed
-```
-
-## Repository Map
-
-```text
-src/api.py                  FastAPI backend for Dify
-src/create_database.py      Rebuilds the local SQLite demo database
-src/query_stockout_risk.py  SQL-backed stockout-risk demo script
-src/write_memory.py         Decision-memory writer
-tests/test_api.py           API tests
-dify/                       Dify prompts, policies, workflow notes
-docs/PORTFOLIO_DEMO.md      Screenshot-based demo walkthrough
-docs/screenshots/           Dify configuration screenshots
-sql/                        SQLite schema, seed data, and queries
-memory/                     Decision-memory schema and examples
-```
-
-## More Setup Notes
-
-See:
-
-- [docs/PORTFOLIO_DEMO.md](docs/PORTFOLIO_DEMO.md)
-- [docs/dify_api_tool_setup.md](docs/dify_api_tool_setup.md)
-- [dify/workflow_design.md](dify/workflow_design.md)
-- [dify/system_prompt.md](dify/system_prompt.md)
-- [dify/sql_tool_policy.md](dify/sql_tool_policy.md)
-- [dify/memory_tool_policy.md](dify/memory_tool_policy.md)
-
-## Claim Boundary
-
-This project demonstrates a synthetic/local decision-support workflow.
-
-It does not demonstrate:
-
-- production deployment,
-- autonomous purchasing,
-- real supplier recommendations,
-- guaranteed business impact,
-- enterprise implementation.
+This repository demonstrates synthetic/local decision-support patterns. It does not demonstrate production deployment, autonomous purchasing, real supplier recommendations, guaranteed business impact or enterprise implementation.
