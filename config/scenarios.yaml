@@ -1,0 +1,9 @@
+scenarios:
+  - scenario_id: baseline
+    description: Normal demand and normal supplier lead time.
+  - scenario_id: demand_spike
+    description: Demand increases materially above baseline.
+  - scenario_id: supplier_delay
+    description: Supplier lead time increases.
+  - scenario_id: demand_spike_supplier_delay
+    description: Demand spike combined with supplier delay.

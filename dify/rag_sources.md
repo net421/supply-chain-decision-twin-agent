@@ -1,0 +1,13 @@
+# RAG Sources
+
+Upload these files to Dify Knowledge:
+
+- README.md
+- docs/BUSINESS_CONTEXT.md
+- docs/KPI_DICTIONARY.md
+- docs/SEMANTIC_CONTRACT.md
+- docs/DECISION_TRACEABILITY_RECORD.md
+- docs/HUMAN_APPROVAL_CHECKPOINT.md
+- docs/VALIDATION_LIFECYCLE.md
+- docs/CLAIM_BOUNDARIES.md
+- docs/LIMITATIONS.md

@@ -1,0 +1,11 @@
+stockout_risk:
+  high: 0.70
+  medium: 0.40
+
+service_level:
+  minimum_expected: 0.80
+
+human_review:
+  required_when_stockout_risk_gte: 0.70
+  required_when_validation_fails: true
+  required_when_recommendation_affects_cost: true

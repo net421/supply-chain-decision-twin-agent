@@ -1,0 +1,8 @@
+flowchart TD
+    A[User Question] --> B[Retrieve Docs]
+    B --> C[Check Semantic Contract]
+    C --> D[Run SQL]
+    D --> E[Validate]
+    E --> F[Recommend]
+    F --> G[Write Memory]
+    G --> H[Human Approval]

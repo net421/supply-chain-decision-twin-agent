@@ -1,0 +1,8 @@
+pandas
+numpy
+sqlalchemy
+pytest
+pyyaml
+fastapi
+uvicorn
+httpx2

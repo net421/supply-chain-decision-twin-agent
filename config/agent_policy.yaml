@@ -1,0 +1,13 @@
+allowed_actions:
+  - retrieve_documentation
+  - query_synthetic_sql_data
+  - write_decision_memory
+  - summarize_validation
+  - recommend_human_review
+
+prohibited_actions:
+  - execute_purchase_order
+  - make_autonomous_operational_decision
+  - claim_production_deployment
+  - use_real_supplier_data
+  - guarantee_business_impact

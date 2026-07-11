@@ -1,0 +1,6 @@
+database:
+  path: data/supply_chain.db
+
+project:
+  name: supply-chain-decision-twin-agent
+  mode: synthetic_local_lab
