@@ -131,6 +131,13 @@ dify/memory_tool_policy.md
 docs/dify_api_tool_setup.md
 ```
 
+Dify was run locally from the official open-source project. The related fork
+used for reference is:
+
+```text
+https://github.com/net421/dify
+```
+
 ## Dify + SQL Responsibility Split
 
 RAG is used for:
